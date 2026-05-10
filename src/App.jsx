@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-
+import { saveBusinessProfile, getBusinessProfile, saveContact, getContacts, saveTodo, getTodos, updateTodo } from './supabase';
 const C = {
   bg: "#F7F6F3", surface: "#FFFFFF", surface2: "#F2F2F0", surface3: "#EAEAE8",
   border: "#E4E4E0", text: "#111111", textSub: "#5A5A54", textMuted: "#AAAAAA",
@@ -394,7 +394,7 @@ function StartupOnboarding({ onDone }) {
 }
 
 // ── Contact Manager ────────────────────────────────────────────
-function ContactManager({ profile }) {
+function ContactManager({ profile, userId }) {
   const [contacts, setContacts] = useState([
     { id: 1, name: "김철수 대표", company: "A유통", lastMsg: "다음 주 화요일 미팅 가능한가요?", date: "오늘 10:23", type: "거래처", unread: true, amount: "500만원", tags: ["미팅", "계약"] },
     { id: 2, name: "이영희 팀장", company: "B마케팅", lastMsg: "광고 제안서 보내드렸습니다", date: "어제", type: "파트너", unread: false, amount: null, tags: ["마케팅"] },
@@ -421,9 +421,16 @@ function ContactManager({ profile }) {
     }, 1500);
   };
 
-  const save = () => {
+  const save = async () => {
     if (!analyzed) return;
-    setTodos(p => [...p, { id: Date.now(), text: analyzed.action, done: false, contact: analyzed.contact, date: analyzed.date || "확인 필요" }]);
+    const newTodo = { id: Date.now(), text: analyzed.action, done: false, contact: analyzed.contact, date: analyzed.date || "확인 필요" };
+    setTodos(p => [...p, newTodo]);
+    
+    // Supabase에 할 일 저장
+    if (userId) {
+      await saveTodo(userId, { text: analyzed.action, contact: analyzed.contact, date: analyzed.date || "확인 필요" });
+    }
+    
     setPasteText(""); setAnalyzed(null); setShowPaste(false);
   };
 
@@ -558,7 +565,19 @@ function ContactManager({ profile }) {
 }
 
 // ── Workspace ──────────────────────────────────────────────────
-function Workspace({ profile, onReset }) {
+function Workspace({ profile, userId, onReset }) {
+  // Supabase에서 데이터 불러오기
+  useEffect(() => {
+    if (!userId) return;
+    // 할 일 불러오기
+    getTodos(userId).then(data => {
+      if (data.length > 0) setTodos(data.map(t => ({ ...t, text: t.text, contact: t.contact_name, date: t.date })));
+    });
+    // 연락처 불러오기  
+    getContacts(userId).then(data => {
+      if (data.length > 0) setContacts(data.map(c => ({ ...c, lastMsg: c.last_message, type: c.type || "거래처", tags: c.tags || [], unread: c.unread || false })));
+    });
+  }, [userId]);
   const isOwner = profile.type === "owner";
   const themeColor = isOwner ? C.accent : C.blue;
   const themeSoft = isOwner ? C.accentSoft : C.blueSoft;
@@ -680,7 +699,7 @@ function Workspace({ profile, onReset }) {
         {/* 메인 영역 */}
         {sideTab === "contacts" ? (
           <div style={{ flex: 1, overflow: "hidden" }}>
-            <ContactManager profile={profile} />
+            <ContactManager profile={profile} userId={userId} />
           </div>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -770,6 +789,32 @@ function Workspace({ profile, onReset }) {
 export default function App() {
   const [stage, setStage] = useState("login");
   const [profile, setProfile] = useState(null);
+  const [userId, setUserId] = useState(null);
+
+  // 로그인 처리 (임시 - 실제 로그인 연동 전)
+  const handleLogin = async (provider) => {
+    // 임시 userId 생성 (실제 로그인 연동 후 교체)
+    const tempUserId = "temp-" + Math.random().toString(36).slice(2);
+    setUserId(tempUserId);
+
+    // 이전 프로필 확인
+    const existing = await getBusinessProfile(tempUserId);
+    if (existing) {
+      setProfile(existing);
+      setStage("workspace");
+    } else {
+      setStage("type");
+    }
+  };
+
+  // 온보딩 완료 시 Supabase에 저장
+  const handleOnboardingDone = async (p) => {
+    setProfile(p);
+    if (userId) {
+      await saveBusinessProfile(userId, p);
+    }
+    setStage("workspace");
+  };
 
   return (
     <>
@@ -783,13 +828,12 @@ export default function App() {
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
       `}</style>
-      {stage === "login" && <LoginPage onLogin={() => setStage("type")} />}
+      {stage === "login" && <LoginPage onLogin={handleLogin} />}
       {stage === "type" && <TypeSelection onSelect={type => setStage(type === "owner" ? "owner" : "startup")} />}
-      {stage === "owner" && <OwnerOnboarding onDone={p => { setProfile(p); setStage("workspace"); }} />}
-      {stage === "startup" && <StartupOnboarding onDone={p => { setProfile(p); setStage("workspace"); }} />}
-      {stage === "workspace" && profile && <Workspace profile={profile} onReset={() => { setProfile(null); setStage("login"); }} />}
+      {stage === "owner" && <OwnerOnboarding onDone={handleOnboardingDone} />}
+      {stage === "startup" && <StartupOnboarding onDone={handleOnboardingDone} />}
+      {stage === "workspace" && profile && <Workspace profile={profile} userId={userId} onReset={() => { setProfile(null); setStage("login"); }} />}
     </>
   );
 }
-
 
