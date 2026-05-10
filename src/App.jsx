@@ -449,6 +449,7 @@ function Workspace({ profile, onReset }) {
     ? [...profile.concerns.map(c => OWNER_AGENTS[c]).filter(Boolean), OWNER_AGENTS.planner]
     : Object.values(STARTUP_AGENTS).filter(a => a.id !== "validator" || profile.hasIdea);
 
+  const [activeTab, setActiveTab] = useState("agents"); // agents | contacts
   const [activeAgent, setActiveAgent] = useState(agents[0]?.id);
   const [messages, setMessages] = useState(() => {
     const init = {};
@@ -545,30 +546,49 @@ function Workspace({ profile, onReset }) {
         {/* Desktop sidebar */}
         {!isMobile && (
           <div style={{ width: "210px", borderRight: `1px solid ${C.border}`, background: C.surface, display: "flex", flexDirection: "column", flexShrink: 0 }}>
-            <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.1em", color: C.textMuted, textTransform: "uppercase", marginBottom: "4px" }}>AI 팀</div>
-              <div style={{ fontSize: "12px", color: C.textSub }}>{profile.name}님의 전담 팀</div>
+            {/* 탭 전환 */}
+            <div style={{ padding: "10px", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", background: C.surface2, borderRadius: "8px", padding: "3px", gap: "2px" }}>
+                {[{ id: "agents", label: "AI 팀" }, ...(isOwner ? [{ id: "contacts", label: "연락 관리" }] : [])].map(t => (
+                  <button key={t.id} onClick={() => setActiveTab(t.id)} style={{ flex: 1, padding: "6px", borderRadius: "6px", border: "none", cursor: "pointer", background: activeTab === t.id ? C.surface : "transparent", color: activeTab === t.id ? C.text : C.textMuted, fontSize: "11px", fontWeight: "700", boxShadow: activeTab === t.id ? "0 1px 4px rgba(0,0,0,0.1)" : "none" }}>{t.label}</button>
+                ))}
+              </div>
             </div>
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {agents.map(a => (
-                <button key={a.id} onClick={() => setActiveAgent(a.id)} style={{ width: "100%", padding: "12px 14px", textAlign: "left", cursor: "pointer", border: "none", background: activeAgent === a.id ? C.surface2 : "transparent", borderLeft: `3px solid ${activeAgent === a.id ? a.color : "transparent"}`, transition: "all 0.15s" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: a.colorSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0 }}>{a.emoji}</div>
-                    <div>
-                      <div style={{ fontSize: "12px", fontWeight: activeAgent === a.id ? "700" : "500", color: activeAgent === a.id ? a.color : C.textSub }}>{a.name}</div>
-                      <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "1px", lineHeight: "1.3" }}>{a.desc.slice(0, 16)}...</div>
+
+            {activeTab === "agents" && (
+              <div style={{ flex: 1, overflowY: "auto" }}>
+                {agents.map(a => (
+                  <button key={a.id} onClick={() => setActiveAgent(a.id)} style={{ width: "100%", padding: "12px 14px", textAlign: "left", cursor: "pointer", border: "none", background: activeAgent === a.id ? C.surface2 : "transparent", borderLeft: `3px solid ${activeAgent === a.id ? a.color : "transparent"}`, transition: "all 0.15s" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "9px", background: a.colorSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "15px", flexShrink: 0 }}>{a.emoji}</div>
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: activeAgent === a.id ? "700" : "500", color: activeAgent === a.id ? a.color : C.textSub }}>{a.name}</div>
+                        <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "1px", lineHeight: "1.3" }}>{a.desc.slice(0, 16)}...</div>
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === "contacts" && (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+                <div style={{ fontSize: "12px", color: C.textMuted, textAlign: "center", lineHeight: "1.6" }}>연락 관리 화면에서<br />전체 내용을 확인하세요</div>
+              </div>
+            )}
+
             <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}` }}>
               <button onClick={onReset} style={{ width: "100%", padding: "8px", borderRadius: "8px", border: `1px solid ${C.border}`, background: "transparent", color: C.textMuted, fontSize: "11px", cursor: "pointer" }}>← 처음으로</button>
             </div>
           </div>
         )}
 
-        {/* Chat */}
+        {/* Chat or Contact Manager */}
+        {activeTab === "contacts" && isOwner ? (
+          <div style={{ flex: 1, overflow: "hidden" }}>
+            <ContactManager profile={profile} />
+          </div>
+        ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Agent header */}
           {!isMobile && currentAgent && (
@@ -624,9 +644,10 @@ function Workspace({ profile, onReset }) {
             <button onClick={() => send()} style={{ padding: "11px 18px", borderRadius: "10px", border: "none", background: themeColor, color: isOwner ? "#000" : "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>전송</button>
           </div>
         </div>
+        )}
 
         {/* Docs panel */}
-        {showDocs && !isMobile && (
+        {showDocs && !isMobile && activeTab !== "contacts" && (
           <div style={{ width: "280px", borderLeft: `1px solid ${C.border}`, background: C.surface, flexShrink: 0, display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: "13px", fontWeight: "700", color: C.text }}>생성된 문서 ({docs.length})</div>
@@ -648,6 +669,230 @@ function Workspace({ profile, onReset }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── Contact Management ────────────────────────────────────────
+function ContactManager({ profile }) {
+  const [contacts, setContacts] = useState([
+    { id: 1, name: "김철수 대표", company: "A유통", lastMsg: "다음 주 화요일 미팅 가능한가요?", date: "오늘 10:23", type: "거래처", unread: true, amount: "500만원", tags: ["미팅", "계약"] },
+    { id: 2, name: "이영희 팀장", company: "B마케팅", lastMsg: "광고 제안서 보내드렸습니다", date: "어제", type: "파트너", unread: false, amount: null, tags: ["마케팅"] },
+    { id: 3, name: "박민준 고객", company: null, lastMsg: "환불 요청드립니다", date: "2일 전", type: "고객", unread: true, amount: "32,000원", tags: ["환불", "CS"] },
+  ]);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzed, setAnalyzed] = useState(null);
+  const [todos, setTodos] = useState([
+    { id: 1, text: "A유통 김철수 대표 미팅 일정 확인", done: false, contact: "김철수 대표", date: "다음 주 화요일" },
+    { id: 2, text: "B마케팅 광고 제안서 검토", done: false, contact: "이영희 팀장", date: "이번 주" },
+    { id: 3, text: "박민준 고객 환불 처리", done: false, contact: "박민준 고객", date: "오늘" },
+  ]);
+
+  const TYPE_COLORS = {
+    "거래처": { color: C.accent, soft: C.accentSoft, border: C.accentBorder },
+    "파트너": { color: C.blue, soft: C.blueSoft, border: C.blueBorder },
+    "고객": { color: "#22C55E", soft: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.3)" },
+  };
+
+  const analyzeMessage = () => {
+    if (!pasteText.trim()) return;
+    setAnalyzing(true);
+    setTimeout(() => {
+      setAnalyzed({
+        summary: "A유통 김철수 대표와의 미팅 요청",
+        contact: "김철수 대표 (A유통)",
+        type: "미팅 요청",
+        date: "다음 주 화요일",
+        amount: null,
+        action: "미팅 일정 확인 및 답변 필요",
+        tags: ["미팅", "거래처"],
+      });
+      setAnalyzing(false);
+    }, 1500);
+  };
+
+  const saveAnalyzed = () => {
+    if (!analyzed) return;
+    setTodos(p => [...p, { id: Date.now(), text: analyzed.action, done: false, contact: analyzed.contact, date: analyzed.date || "확인 필요" }]);
+    setPasteText("");
+    setAnalyzed(null);
+    setShowPaste(false);
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+
+      {/* Left — 연락처 목록 */}
+      <div style={{ width: "280px", borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ padding: "16px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: "14px", fontWeight: "700", color: C.text }}>연락 관리</div>
+            <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>총 {contacts.length}개</div>
+          </div>
+          <button onClick={() => setShowPaste(true)} style={{ padding: "7px 12px", borderRadius: "8px", border: "none", background: C.accent, color: "#000", fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>+ 연락 추가</button>
+        </div>
+
+        {/* 필터 */}
+        <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", gap: "6px" }}>
+          {["전체", "거래처", "파트너", "고객"].map(t => (
+            <button key={t} style={{ padding: "4px 10px", borderRadius: "20px", border: `1px solid ${C.border}`, background: t === "전체" ? C.text : "transparent", color: t === "전체" ? "#fff" : C.textSub, fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>{t}</button>
+          ))}
+        </div>
+
+        {/* 연락처 목록 */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {contacts.map((c, i) => {
+            const tc = TYPE_COLORS[c.type] || TYPE_COLORS["거래처"];
+            return (
+              <div key={c.id} onClick={() => setSelectedContact(c)} style={{ padding: "14px 16px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, background: selectedContact?.id === c.id ? C.surface2 : "transparent", transition: "background 0.15s" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: tc.soft, border: `1px solid ${tc.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700", color: tc.color, flexShrink: 0 }}>{c.name[0]}</div>
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: "700", color: C.text, display: "flex", alignItems: "center", gap: "5px" }}>
+                        {c.name}
+                        {c.unread && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: C.accent, flexShrink: 0 }} />}
+                      </div>
+                      {c.company && <div style={{ fontSize: "11px", color: C.textMuted }}>{c.company}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "10px", color: C.textMuted, flexShrink: 0 }}>{c.date}</div>
+                </div>
+                <div style={{ fontSize: "12px", color: C.textSub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: "40px" }}>{c.lastMsg}</div>
+                {c.tags.length > 0 && (
+                  <div style={{ display: "flex", gap: "4px", paddingLeft: "40px", marginTop: "6px" }}>
+                    {c.tags.map((tag, ti) => (
+                      <span key={ti} style={{ padding: "2px 7px", borderRadius: "20px", background: tc.soft, color: tc.color, fontSize: "10px", fontWeight: "600" }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Middle — 상세 / 붙여넣기 */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {showPaste ? (
+          <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <div style={{ fontSize: "16px", fontWeight: "800", color: C.text, marginBottom: "4px" }}>연락 내용 분석</div>
+                <div style={{ fontSize: "13px", color: C.textSub }}>문자·카톡·이메일 내용을 붙여넣으면 AI가 자동으로 분석해요</div>
+              </div>
+              <button onClick={() => { setShowPaste(false); setPasteText(""); setAnalyzed(null); }} style={{ padding: "7px 14px", borderRadius: "8px", border: `1px solid ${C.border}`, background: "transparent", color: C.textSub, fontSize: "12px", cursor: "pointer" }}>취소</button>
+            </div>
+
+            <textarea value={pasteText} onChange={e => setPasteText(e.target.value)} placeholder={"문자, 카톡, 이메일 내용을 여기에 붙여넣으세요\n\n예시:\n김철수: 다음 주 화요일 미팅 가능한가요? 계약 물량 500개 얘기하고 싶어요\n나: 네 가능합니다"} style={{ width: "100%", minHeight: "180px", padding: "16px", borderRadius: "12px", border: `1.5px solid ${C.border}`, background: C.surface, color: C.text, fontSize: "14px", lineHeight: "1.7", resize: "none", outline: "none", marginBottom: "12px" }} onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.border} />
+
+            <button onClick={analyzeMessage} disabled={!pasteText.trim() || analyzing} style={{ width: "100%", padding: "14px", borderRadius: "10px", border: "none", background: pasteText.trim() ? C.accent : C.border, color: pasteText.trim() ? "#000" : C.textMuted, fontSize: "14px", fontWeight: "700", cursor: pasteText.trim() ? "pointer" : "not-allowed", marginBottom: "20px" }}>
+              {analyzing ? "AI가 분석 중..." : "🤖 AI 자동 분석"}
+            </button>
+
+            {analyzed && (
+              <div style={{ background: C.surface, borderRadius: "14px", border: `1.5px solid ${C.accentBorder}`, overflow: "hidden" }}>
+                <div style={{ padding: "14px 18px", background: C.accentSoft, borderBottom: `1px solid ${C.accentBorder}` }}>
+                  <div style={{ fontSize: "12px", fontWeight: "700", color: C.accent, textTransform: "uppercase", letterSpacing: "0.08em" }}>✦ AI 분석 결과</div>
+                </div>
+                <div style={{ padding: "18px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+                    {[
+                      { label: "요약", value: analyzed.summary },
+                      { label: "연락처", value: analyzed.contact },
+                      { label: "유형", value: analyzed.type },
+                      analyzed.date && { label: "일정", value: analyzed.date },
+                      analyzed.amount && { label: "금액", value: analyzed.amount },
+                      { label: "필요한 조치", value: analyzed.action },
+                    ].filter(Boolean).map((item, i) => (
+                      <div key={i} style={{ display: "flex", gap: "12px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: C.textMuted, width: "80px", flexShrink: 0 }}>{item.label}</span>
+                        <span style={{ fontSize: "13px", color: C.text, fontWeight: item.label === "필요한 조치" ? "700" : "400" }}>{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                    {analyzed.tags.map((tag, i) => <span key={i} style={{ padding: "4px 10px", borderRadius: "20px", background: C.accentSoft, color: C.accent, fontSize: "11px", fontWeight: "700", border: `1px solid ${C.accentBorder}` }}>{tag}</span>)}
+                  </div>
+                  <button onClick={saveAnalyzed} style={{ width: "100%", padding: "13px", borderRadius: "10px", border: "none", background: C.text, color: "#fff", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>저장하고 할 일 추가 →</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : selectedContact ? (
+          <div style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px" }}>
+              <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: TYPE_COLORS[selectedContact.type]?.soft, border: `1.5px solid ${TYPE_COLORS[selectedContact.type]?.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", fontWeight: "700", color: TYPE_COLORS[selectedContact.type]?.color }}>{selectedContact.name[0]}</div>
+                <div>
+                  <div style={{ fontSize: "18px", fontWeight: "800", color: C.text }}>{selectedContact.name}</div>
+                  {selectedContact.company && <div style={{ fontSize: "13px", color: C.textSub }}>{selectedContact.company}</div>}
+                  <span style={{ fontSize: "11px", padding: "2px 8px", borderRadius: "20px", background: TYPE_COLORS[selectedContact.type]?.soft, color: TYPE_COLORS[selectedContact.type]?.color, fontWeight: "700", border: `1px solid ${TYPE_COLORS[selectedContact.type]?.border}` }}>{selectedContact.type}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 최근 연락 */}
+            <div style={{ background: C.surface, borderRadius: "12px", border: `1px solid ${C.border}`, padding: "16px", marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>최근 연락</div>
+              <div style={{ fontSize: "14px", color: C.text, lineHeight: "1.7", marginBottom: "8px" }}>{selectedContact.lastMsg}</div>
+              {selectedContact.amount && (
+                <div style={{ fontSize: "13px", color: C.accent, fontWeight: "700" }}>관련 금액: {selectedContact.amount}</div>
+              )}
+              <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "8px" }}>{selectedContact.date}</div>
+            </div>
+
+            {/* 관련 할 일 */}
+            <div style={{ background: C.surface, borderRadius: "12px", border: `1px solid ${C.border}`, padding: "16px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>관련 할 일</div>
+              {todos.filter(t => t.contact === selectedContact.name).map(todo => (
+                <div key={todo.id} style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" }}>
+                  <button onClick={() => setTodos(p => p.map(t => t.id === todo.id ? { ...t, done: !t.done } : t))} style={{ width: "20px", height: "20px", borderRadius: "50%", border: `1.5px solid ${todo.done ? C.text : C.border}`, background: todo.done ? C.text : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#fff", cursor: "pointer", flexShrink: 0 }}>{todo.done ? "✓" : ""}</button>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "13px", color: todo.done ? C.textMuted : C.text, textDecoration: todo.done ? "line-through" : "none" }}>{todo.text}</div>
+                    <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>{todo.date}</div>
+                  </div>
+                </div>
+              ))}
+              {todos.filter(t => t.contact === selectedContact.name).length === 0 && (
+                <div style={{ fontSize: "13px", color: C.textMuted, textAlign: "center", padding: "20px 0" }}>관련 할 일이 없어요</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "12px" }}>
+            <div style={{ fontSize: "40px" }}>💬</div>
+            <div style={{ fontSize: "14px", color: C.textMuted, textAlign: "center", lineHeight: "1.7" }}>
+              연락처를 선택하거나<br />새 연락을 추가해보세요
+            </div>
+            <button onClick={() => setShowPaste(true)} style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: C.accent, color: "#000", fontSize: "13px", fontWeight: "700", cursor: "pointer", marginTop: "8px" }}>+ 연락 내용 붙여넣기</button>
+          </div>
+        )}
+      </div>
+
+      {/* Right — 할 일 목록 */}
+      <div style={{ width: "240px", borderLeft: `1px solid ${C.border}`, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <div style={{ padding: "16px", borderBottom: `1px solid ${C.border}` }}>
+          <div style={{ fontSize: "13px", fontWeight: "700", color: C.text }}>할 일</div>
+          <div style={{ fontSize: "11px", color: C.textMuted, marginTop: "2px" }}>{todos.filter(t => !t.done).length}개 남음</div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
+          {todos.map(todo => (
+            <div key={todo.id} style={{ padding: "10px 12px", borderRadius: "10px", border: `1px solid ${C.border}`, marginBottom: "8px", background: todo.done ? C.surface2 : C.surface }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                <button onClick={() => setTodos(p => p.map(t => t.id === todo.id ? { ...t, done: !t.done } : t))} style={{ width: "18px", height: "18px", borderRadius: "50%", border: `1.5px solid ${todo.done ? C.text : C.border}`, background: todo.done ? C.text : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#fff", cursor: "pointer", flexShrink: 0, marginTop: "1px" }}>{todo.done ? "✓" : ""}</button>
+                <div>
+                  <div style={{ fontSize: "12px", color: todo.done ? C.textMuted : C.text, textDecoration: todo.done ? "line-through" : "none", lineHeight: "1.5" }}>{todo.text}</div>
+                  <div style={{ fontSize: "10px", color: C.textMuted, marginTop: "4px" }}>{todo.contact} · {todo.date}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
